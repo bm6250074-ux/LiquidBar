@@ -1,0 +1,41 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: |
+          ZIP=$(find . -maxdepth 1 -name "*.zip" | head -n1)
+          if [ -z "$ZIP" ]; then echo "لا يوجد ملف zip في جذر المستودع"; exit 1; fi
+          mkdir -p /tmp/proj
+          unzip -q "$ZIP" -d /tmp/proj
+          SETTINGS=$(find /tmp/proj -name "settings.gradle*" | head -n1)
+          if [ -z "$SETTINGS" ]; then echo "settings.gradle غير موجود داخل الـ zip"; exit 1; fi
+          echo "PROJECT_DIR=$(dirname "$SETTINGS")" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Build debug APK
+        run: |
+          cd "$PROJECT_DIR"
+          gradle assembleDebug --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LiquidBar-debug
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          
